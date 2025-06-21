@@ -47,11 +47,14 @@
       <header>Molecules</header>
       <div id="molList"></div>
       <div id="controls">
-        <button id="labelMode">Labels: Off</button>
+        <!-- Shades button comes first and is ON by default -->
+        <button id="shadesBtn" class="active">Shades: On</button>
         <select id="styleSelect">
           <option value="stick" selected>Stick</option>
           <option value="ballstick">Ball & Stick</option>
         </select>
+        <!-- Labels button moved to the last position -->
+        <button id="labelMode">Labels: Off</button>
       </div>
     </aside>
     <section id="viewerContainer">
@@ -59,7 +62,7 @@
       <div id="formulaLabel"></div>
     </section>
   </main>
-  <footer>MíšaXYZ v1.2 · Made by RSI in 2025 · Roithová Group</footer>
+  <footer>MíšaXYZ v1.3 · Made by RSI in 2025 · Roithová Group</footer>
   <script>
     /***** constants *****/
     const symbols=["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
@@ -73,8 +76,15 @@
     const labelModeBtn=document.getElementById("labelMode");
     const styleSelect=document.getElementById("styleSelect");
     const formulaLabel=document.getElementById("formulaLabel");
+    const shadesBtn=document.getElementById("shadesBtn");
 
     const viewer=$3Dmol.createViewer("viewer",{backgroundColor:"white"});
+    // Intensify shading and keep it ON by default
+    let shadesOn=true;
+    viewer.enableFog(true);
+    // Stronger fog effect: start at 30% of the model radius and reach full at 100%
+    if (viewer.setFog) viewer.setFog(0.3,1.0);
+
     let currentModel=null;
 
     /* state */
@@ -165,10 +175,10 @@
     function applyStyle(){
       if(!currentModel) return;
       currentModel.setStyle({},{}); // clear existing
-      const stick={radius:0.15}, sphere={scale:0.25};
+      const stick={radius:0.15};
+      const sphere={scale:0.25};
       const choice=styleSelect.value;
       const isStick=choice==="stick";
-      const isBallStick=!isStick;
 
       if(isStick){
         currentModel.setStyle({}, {stick});
@@ -190,6 +200,16 @@
       metals.forEach(el=>addColoredStyle({elem:el},"orange"));
     }
     styleSelect.addEventListener("change",()=>{applyStyle();viewer.render();});
+
+    /***** shades (depth fade) *****/
+    shadesBtn.onclick=()=>{
+      shadesOn=!shadesOn;
+      viewer.enableFog(shadesOn);
+      if(viewer.setFog) viewer.setFog(shadesOn?0.3:0.7,1.0);
+      shadesBtn.textContent=`Shades: ${shadesOn?"On":"Off"}`;
+      shadesBtn.classList.toggle("active",shadesOn);
+      viewer.render();
+    };
 
     /***** labels *****/
     function drawLabels(){
@@ -216,9 +236,9 @@
         if(a==="H") return b==="C"?1:-1; if(b==="H") return a==="C"?-1:1;
         return a.localeCompare(b);
       });
-      let formula="";
-      keys.forEach(k=>{formula+=k+(counts[k]>1?counts[k]:"");});
-      formulaLabel.textContent=formula;
+      const parts=[];
+      keys.forEach(k=>{parts.push(k+(counts[k]>1?counts[k]:""));});
+      formulaLabel.textContent=parts.join(" ");
     }
 
     /***** resize *****/
