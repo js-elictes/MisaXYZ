@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>MisaXYZ Viewer</title>
+  <title>MíšaXYZ Viewer</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.5.0/3Dmol-min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root{
       --bg:#f3f4f8;
-      --card:#fff;
+      --card:#ffffff;
       --accent:#2563eb;
+      --accent-muted:#dbe9ff;
       --text:#1e1f22;
       --radius:8px;
       --muted:#6b7280;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Segoe UI,Arial,sans-serif}
     body{background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh}
-    /* Main layout */
     main{flex:1;display:flex;overflow:hidden}
     /* Sidebar */
     #sidebar{width:260px;max-width:40%;background:var(--card);border-right:1px solid #e1e2e6;display:flex;flex-direction:column}
@@ -27,17 +27,17 @@
     #sidebar header{padding:16px;font-size:16px;font-weight:600;border:none}
     #molList{flex:1;overflow-y:auto;padding:0 8px}
     #molList button{width:100%;text-align:left;border:none;background:transparent;padding:10px 12px;border-radius:var(--radius);cursor:pointer;font-size:14px;transition:background .2s}
-    #molList button.active,#molList button:hover{background:#eef2ff}
-    #controls{display:flex;padding:12px;border-top:1px solid #e1e2e6}
-    #controls button{width:100%;padding:8px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:14px}
-    #labelMode{background:#e5e7eb;color:var(--text)}
+    #molList button.active,#molList button:hover{background:var(--accent-muted)}
+    #controls{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-top:1px solid #e1e2e6}
+    #controls button,#controls select{flex:1 1 48%;padding:8px;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:14px;background:#e5e7eb;color:var(--text)}
+    #controls button.active{background:var(--accent);color:#fff}
     #viewerContainer{flex:1;position:relative}
     #viewer{width:100%;height:100%}
+    #formulaLabel{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.85);padding:4px 10px;border-radius:var(--radius);font-weight:600;font-size:14px;pointer-events:none}
     footer{padding:8px 12px;font-size:12px;text-align:center;color:var(--muted)}
   </style>
 </head>
 <body>
-  <!-- Removed top header for a cleaner embed -->
   <main>
     <aside id="sidebar">
       <div id="fileSection">
@@ -46,29 +46,41 @@
       </div>
       <header>Molecules</header>
       <div id="molList"></div>
-      <div id="controls"><button id="labelMode">Labels: Off</button></div>
+      <div id="controls">
+        <button id="labelMode">Labels: Off</button>
+        <select id="styleSelect">
+          <option value="stick" selected>Stick</option>
+          <option value="ballstick">Ball & Stick</option>
+        </select>
+      </div>
     </aside>
-    <section id="viewerContainer"><div id="viewer"></div></section>
+    <section id="viewerContainer">
+      <div id="viewer"></div>
+      <div id="formulaLabel"></div>
+    </section>
   </main>
-  <footer>MíšaXYZ&nbsp;v1.1&nbsp;&nbsp;&nbsp;&nbsp;Made&nbsp;by&nbsp;RSI&nbsp;in&nbsp;2025&nbsp;&nbsp;&nbsp;&nbsp;Roithová&nbsp;Group</footer>
+  <footer>MíšaXYZ v1.2 · Made by RSI in 2025 · Roithová Group</footer>
   <script>
-    /***** data *****/
+    /***** constants *****/
     const symbols=["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+
     const metals=["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"];
 
-    /***** elements *****/
+    /***** DOM elements *****/
     const fileBtn=document.getElementById("fileBtn");
     const fileInput=document.getElementById("fileInput");
     const molList=document.getElementById("molList");
     const labelModeBtn=document.getElementById("labelMode");
+    const styleSelect=document.getElementById("styleSelect");
+    const formulaLabel=document.getElementById("formulaLabel");
 
     const viewer=$3Dmol.createViewer("viewer",{backgroundColor:"white"});
     let currentModel=null;
 
     /* state */
-    let molecules=[]; // [{header, xyz}]
+    let molecules=[]; // [{header,xyz,atoms:[{elem,x,y,z}]}]
     let currentIndex=-1;
-    let labelState=0; // 0 off, 1 element, 2 atomic no.
+    let labelState=0; // 0 off,1 element,2 atomic index
 
     /***** helpers *****/
     const modeText=["Labels: Off","Labels: A","Labels: Z"];
@@ -76,7 +88,6 @@
 
     /***** file handling *****/
     fileBtn.onclick=()=>fileInput.click();
-
     fileInput.addEventListener("change",e=>{
       const file=e.target.files[0];
       if(!file) return;
@@ -86,7 +97,7 @@
           molecules=parseXYZ(ev.target.result);
           populateList();
           if(molecules.length) loadMol(0);
-        }catch(err){alert(err.message||err);}
+        }catch(err){alert(err.message||err);}  
       };
       reader.readAsText(file);
     });
@@ -102,6 +113,7 @@
         if(isNaN(n)||n<=0) throw new Error(`Invalid atom count on line ${i+1}`);
         const header=(lines[i+1]||"").trim();
         const xyzLines=[];
+        const atoms=[];
         for(let j=0;j<n;j++){
           const ln=lines[i+2+j];
           if(!ln) throw new Error("Unexpected end of file while reading atoms");
@@ -112,9 +124,11 @@
             const idx=parseInt(atom,10);
             atom=symbols[idx]||"X";
           }
-          xyzLines.push(`${atom} ${parts[1]} ${parts[2]} ${parts[3]}`);
+          const x=parseFloat(parts[1]),y=parseFloat(parts[2]),z=parseFloat(parts[3]);
+          xyzLines.push(`${atom} ${x} ${y} ${z}`);
+          atoms.push({elem:atom,x,y,z});
         }
-        mols.push({header,xyz:`${n}\n${header}\n${xyzLines.join("\n")}\n`});
+        mols.push({header,atoms,xyz:`${n}\n${header}\n${xyzLines.join("\n")}\n`});
         i+=n+2;
       }
       return mols;
@@ -140,23 +154,42 @@
       viewer.removeAllModels();
 
       currentModel=viewer.addModel(molecules[index].xyz,"xyz");
-      const stick={radius:0.15};
-      const sphere={scale:0.25};
-      currentModel.setStyle({}, {stick,sphere}); // default style
-
-      // smaller hydrogens
-      currentModel.setStyle({elem:"H"},{stick,sphere:{scale:0.15}});
-      // nitrogen light blue
-      currentModel.setStyle({elem:"N"},{stick:{...stick,color:"#70b8ff"},sphere:{...sphere,color:"#70b8ff"}});
-      // fluor dark green
-      currentModel.setStyle({elem:"F"},{stick:{...stick,color:"#006400"},sphere:{...sphere,color:"#006400"}});
-      // metals orange
-      metals.forEach(el=>currentModel.setStyle({elem:el},{stick:{...stick,color:"orange"},sphere:{...sphere,color:"orange"}}));
-
+      applyStyle();
       drawLabels();
       viewer.zoomTo();
       viewer.render();
+      updateFormula();
     }
+
+    /***** style handling *****/
+    function applyStyle(){
+      if(!currentModel) return;
+      currentModel.setStyle({},{}); // clear existing
+      const stick={radius:0.15}, sphere={scale:0.25};
+      const choice=styleSelect.value;
+      const isStick=choice==="stick";
+      const isBallStick=!isStick;
+
+      if(isStick){
+        currentModel.setStyle({}, {stick});
+      }else{ // ball & stick
+        currentModel.setStyle({}, {stick,sphere});
+        // smaller hydrogens in ball&stick
+        currentModel.setStyle({elem:"H"}, {stick,sphere:{scale:0.15}});
+      }
+
+      const addColoredStyle=(selector,color)=>{
+        if(isStick){
+          currentModel.setStyle(selector,{stick:{...stick,color}});
+        }else{
+          currentModel.setStyle(selector,{stick:{...stick,color},sphere:{...sphere,color}});
+        }
+      };
+      addColoredStyle({elem:"N"},"#70b8ff");
+      addColoredStyle({elem:"F"},"#006400");
+      metals.forEach(el=>addColoredStyle({elem:el},"orange"));
+    }
+    styleSelect.addEventListener("change",()=>{applyStyle();viewer.render();});
 
     /***** labels *****/
     function drawLabels(){
@@ -168,16 +201,25 @@
         viewer.addLabel(text,{position:{x:a.x,y:a.y,z:a.z},fontSize:12,backgroundColor:"rgba(128,128,128,0.4)"});
       });
     }
-
-    /***** label mode cycle *****/
-    labelModeBtn.onclick=()=>{
-      labelState=(labelState+1)%3;
-      setModeText();
-      drawLabels();
-      viewer.render();
-    };
-
+    labelModeBtn.onclick=()=>{labelState=(labelState+1)%3;setModeText();drawLabels();viewer.render();};
     setModeText();
+
+    /***** formula *****/
+    function updateFormula(){
+      const mol=molecules[currentIndex];
+      if(!mol){formulaLabel.textContent="";return;}
+      const counts={};
+      mol.atoms.forEach(a=>{counts[a.elem]=(counts[a.elem]||0)+1;});
+      const keys=Object.keys(counts);
+      keys.sort((a,b)=>{
+        if(a==="C") return -1; if(b==="C") return 1;
+        if(a==="H") return b==="C"?1:-1; if(b==="H") return a==="C"?-1:1;
+        return a.localeCompare(b);
+      });
+      let formula="";
+      keys.forEach(k=>{formula+=k+(counts[k]>1?counts[k]:"");});
+      formulaLabel.textContent=formula;
+    }
 
     /***** resize *****/
     window.addEventListener("resize",()=>viewer.resize());
