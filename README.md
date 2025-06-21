@@ -1,6 +1,6 @@
-# MíšaXYZ Viewer
+# RSI MolKit Viewer
 
-**MíšaXYZ** is a lightweight web-based viewer for `.xyz` molecular files, designed for quick and clean 3D visualization using a custom build of [3Dmol.js](https://3dmol.org/).
+**RSI MolKit Viewer** is a lightweight web-based viewer for `.xyz` molecular files, designed for quick and clean 3D visualization using a custom build of [3Dmol.js](https://3dmol.org/).
 
 ## Features
 
