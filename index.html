@@ -1,522 +1,357 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>RSI MolKit Viewer</title>
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="rgfavicon.png">
-
-  <!-- 3Dmol.js (custom build) -->
+  <link rel="icon" type="image/png" href="rgfavicon.png" />
   <script src="./3Dmol-min-misaxyz.js"></script>
 
-  <!-- Fonts -->
   <style>
-    @font-face {
-      font-family: "Inter";
-      src: url("Inter-Regular.woff2") format("woff2");
-      font-weight: 400;
-      font-display: swap;
-    }
+    /* Fonts */
+    @font-face { font-family: "Inter"; src: url("Inter-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "Inter"; src: url("Inter-SemiBold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+    @font-face { font-family: "Inter"; src: url("Inter-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 
-    @font-face {
-      font-family: "Inter";
-      src: url("Inter-SemiBold.woff2") format("woff2");
-      font-weight: 600;
-      font-display: swap;
-    }
-
-    @font-face {
-      font-family: "Inter";
-      src: url("Inter-Bold.woff2") format("woff2");
-      font-weight: 700;
-      font-display: swap;
-    }
-
-    /* --------------------------------------------------
-       CSS Custom Properties
-    -------------------------------------------------- */
+    /* Theme tokens */
     :root {
-      --bg:              #f0f4ff;
-      --bg-grad-start:   #d9f5f5;
-      --bg-grad-end:     #f9fafb;
-      --card:            rgba(255, 255, 255, 0.65);
-      --accent:          #008081;
-      --accent-muted:    #d5f0f0;
-      --text:            #1f2937;
-      --muted:           #6b7280;
-      --radius:          12px;
-      --shadow:          0 10px 25px rgba(0, 0, 0, 0.07);
+      --bg: #f0f4ff;
+      --bg-grad-start: #d9f5f5;
+      --bg-grad-end: #f9fafb;
+      --card: rgba(255, 255, 255, 0.65);
+      --accent: #008081;
+      --accent-muted: #d5f0f0;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --radius: 12px;
+      --shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
     }
 
-    /* --------------------------------------------------
-       Global reset
-    -------------------------------------------------- */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: "Inter", "Segoe UI", Arial, sans-serif;
-    }
-
+    /* Reset */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", "Segoe UI", Arial, sans-serif; }
     html, body { height: 100%; }
-    body { zoom: 0.95; }
 
-    /* --------------------------------------------------
-       Layout
-    -------------------------------------------------- */
-    body {
-      display: flex;
-      flex-direction: column;
-      color: var(--text);
-      background: var(--bg);
-    }
+    /* Layout */
+    body { zoom: 0.95; display: flex; flex-direction: column; color: var(--text); background: var(--bg); }
+    body::before { content: ""; position: fixed; inset: 0; background: linear-gradient(130deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 70%); z-index: -2; }
+    main { flex: 1; display: flex; overflow: hidden; animation: fadeIn 0.6s ease 0.1s both; }
 
-    /* Background gradient */
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background: linear-gradient(130deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 70%);
-      z-index: -2;
-    }
+    /* Sidebar */
+    #sidebar { width: 280px; max-width: 65%; display: flex; flex-direction: column; backdrop-filter: blur(14px) saturate(160%); background: var(--card); box-shadow: var(--shadow); border-right: 1px solid rgba(0, 0, 0, 0.05); }
+    #fileSection { padding: 16px 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+    #rgLogo { display: block; margin: 0 0 13px 0; width: 140px; max-width: 80%; height: auto; }
 
-    main {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      animation: fadeIn 0.6s ease 0.1s both;
-    }
+    #fileBtn { width: 100%; padding: 10px 18px; font-weight: 600; font-size: 15px; border: none; border-radius: var(--radius); background: var(--accent); color: #fff; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+    #fileBtn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 14px rgba(0, 128, 129, 0.25); }
+    #fileBtn:active { transform: translateY(0) scale(1); }
 
-    /* Sidebar --------------------------------------------------------- */
-    #sidebar {
-      width: 280px;
-      max-width: 65%;
-      display: flex;
-      flex-direction: column;
-      backdrop-filter: blur(14px) saturate(160%);
-      background: var(--card);
-      box-shadow: var(--shadow);
-      border-right: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    #fileSection {
-      padding: 16px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    }
-
-    #rgLogo {
-      display: block;
-      margin: 0 0 13px 0;
-      width: 140px;
-      max-width: 80%;
-      height: auto;
-    }
-
-    #fileBtn {
-      width: 100%;
-      padding: 10px 18px;
-      font-weight: 600;
-      font-size: 15px;
-      border: none;
-      border-radius: var(--radius);
-      background: var(--accent);
-      color: #fff;
-      cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    #fileBtn:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 6px 14px rgba(0, 128, 129, 0.25);
-    }
-
-    #fileBtn:active {
-      transform: translateY(0) scale(1);
-    }
-
-    #sidebar header {
-      padding: 18px 16px;
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--text);
-    }
+    #sidebar header { padding: 18px 16px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
 
     /* Molecule list */
-    #molList {
-      flex: 1;
-      padding: 0 10px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-    }
+    #molList { flex: 1; padding: 0 10px 10px 10px; overflow-y: auto; scroll-behavior: smooth; }
+    #molList button { width: 100%; text-align: left; background: transparent; border: none; padding: 12px 14px; border-radius: var(--radius); font-size: 15px; cursor: pointer; transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+    #molList button:hover { background: var(--accent-muted); transform: translateY(-1.5px) scale(1.02); box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18); }
+    #molList button:active { transform: translateY(0) scale(1); }
+    #molList button.active { background: var(--accent); color: #fff; }
+    #molList button + button { margin-top: 6px; }
 
-    #molList button {
-      width: 100%;
-      text-align: left;
-      background: transparent;
-      border: none;
-      padding: 12px 14px;
-      border-radius: var(--radius);
-      font-size: 15px;
-      cursor: pointer;
-      transition: background 0.15s ease, transform 0.15s ease;
-    }
+    #molList button.error { color: #b91c1c; opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
+    #molList button.error:hover { background: transparent; transform: none; box-shadow: none; }
 
-    #molList button:hover            { background: var(--accent-muted); }
-    #molList button.active           { background: var(--accent); color: #fff; }
+    #molList .index { font-weight: 700; margin-right: 4px; }
 
-    /* Custom scrollbar */
-    #molList::-webkit-scrollbar       { width: 6px; }
+    #molList::-webkit-scrollbar { width: 6px; }
     #molList::-webkit-scrollbar-track { background: transparent; }
     #molList::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 3px; }
 
-    /* Controls under the list */
-    #controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding: 16px;
-      border-top: 1px solid rgba(0, 0, 0, 0.06);
-    }
-
+    /* Controls */
+    #controls { display: flex; flex-direction: column; gap: 10px; padding: 16px 10px; border-top: 1px solid rgba(0, 0, 0, 0.06); }
     #controls button {
-      flex: 1 1 48%;
-      padding: 10px;
+      width: 100%;
+      padding: 10px 18px;
+      font-size: 15px;
       border: none;
       border-radius: var(--radius);
-      font-size: 14px;
       font-weight: 600;
       background: #e5e7eb;
       color: var(--text);
       cursor: pointer;
       transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }
-
-    #controls button:hover  {
-      background: #d1d5db;
-      transform: translateY(-1.5px) scale(1.02);
-      box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18);
-    }
-
+    #controls button:hover { background: #d1d5db; transform: translateY(-1.5px) scale(1.02); box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18); }
     #controls button:active { transform: translateY(0) scale(1); }
     #controls button.active { background: var(--accent); color: #fff; }
 
-    /* Viewer ---------------------------------------------------------- */
-    #viewerContainer {
-      flex: 1;
-      position: relative;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    /* Viewer */
+    #viewerContainer { flex: 1; position: relative; min-width: 0; display: flex; align-items: center; justify-content: center; }
+    #viewer { width: 100%; height: 100%; }
 
-    #viewer        { width: 100%; height: 100%; }
+    /* Info pills */
+    #infoPills { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+    .pill { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: var(--radius); font-weight: 600; font-size: 15px; color: var(--text); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06); pointer-events: none; max-width: 45vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #detailsLabel { background: var(--accent-muted); }
 
-    #formulaLabel {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(8px);
-      padding: 6px 14px;
-      border-radius: var(--radius);
-      font-weight: 600;
-      font-size: 15px;
-      color: var(--text);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
-      pointer-events: none;
-    }
-
-    /* Footer ---------------------------------------------------------- */
+    /* Footer */
     footer {
-      padding: 12px 16px;
+      margin-top: auto;
+      padding: 8px 16px;
       font-size: 13px;
       text-align: center;
       color: var(--muted);
     }
 
-    /* Animations ------------------------------------------------------ */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: none;          }
-    }
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
   <main>
-    <!-- ================== Sidebar ================== -->
     <aside id="sidebar">
-      <!-- File loader -->
       <div id="fileSection">
-        <img id="rgLogo" src="rglogo.avif" alt="Roithová Group logo">
-        <input type="file" id="fileInput" accept=".xyz" hidden>
+        <img id="rgLogo" src="rglogo.avif" alt="Roithová Group logo" />
+        <input type="file" id="fileInput" accept=".xyz" hidden />
         <button id="fileBtn">Open .xyz</button>
       </div>
-
-      <!-- Molecule list -->
       <header>Molecules</header>
       <div id="molList"></div>
-
-      <!-- Style and label controls -->
       <div id="controls">
         <button id="styleBtn">Style: Stick</button>
         <button id="labelMode">Labels: Off</button>
       </div>
     </aside>
 
-    <!-- ================== Viewer ================== -->
     <section id="viewerContainer">
       <div id="viewer"></div>
-      <div id="formulaLabel"></div>
+      <div id="infoPills">
+        <div id="formulaLabel" class="pill"></div>
+        <div id="detailsLabel" class="pill" style="display: none;"></div>
+      </div>
     </section>
   </main>
 
-  <footer>RSI MolKit Viewer v1.6 · Roithová Group 2025</footer>
+  <footer>RSI MolKit Viewer v1.7 · Roithová Group 2025</footer>
 
-  <!-- ===============================================================
-       JavaScript
-  =============================================================== -->
   <script>
-    /* --------------------------------------------------------------
-       Periodic table helpers
-    -------------------------------------------------------------- */
-    const SYMBOLS = [
-      "", "H", "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne",
-      "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti",
-      "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br",
-      "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-      "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm",
-      "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
-      "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac",
-      "Th", "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr",
-      "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
-    ];
+    /* Periodic table helpers */
+    const SYMBOLS = ["", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og" ];
+    const METALS = ["Li", "Be", "Na", "Mg", "Al", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn" ];
 
-    // A quick lookup list for colourised metals
-    const METALS = [
-      "Li", "Be", "Na", "Mg", "Al", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni",
-      "Cu", "Zn", "Ga", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-      "In", "Sn", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er",
-      "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po",
-      "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No",
-      "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn"
-    ];
+    /* DOM references */
+    const fileBtn = document.getElementById("fileBtn");
+    const fileInput = document.getElementById("fileInput");
+    const molList = document.getElementById("molList");
+    const labelModeBtn = document.getElementById("labelMode");
+    const styleBtn = document.getElementById("styleBtn");
+    const formulaLabel = document.getElementById("formulaLabel");
+    const detailsLabel = document.getElementById("detailsLabel");
 
-    /* --------------------------------------------------------------
-       DOM references
-    -------------------------------------------------------------- */
-    const fileBtn       = document.getElementById("fileBtn");
-    const fileInput     = document.getElementById("fileInput");
-    const molList       = document.getElementById("molList");
-    const labelModeBtn  = document.getElementById("labelMode");
-    const styleBtn      = document.getElementById("styleBtn");
-    const formulaLabel  = document.getElementById("formulaLabel");
-
-    /* --------------------------------------------------------------
-       Initialise 3Dmol viewer
-    -------------------------------------------------------------- */
+    /* 3Dmol viewer */
     const viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
     viewer.enableFog(true);
-    if (viewer.setFog) {
-      viewer.setFog(0.3, 1.0);
-    }
+    if (viewer.setFog) viewer.setFog(0.3, 1.0);
 
-    /* --------------------------------------------------------------
-       Application state
-    -------------------------------------------------------------- */
-    let molecules     = [];  // Parsed molecules from the XYZ file
-    let currentIndex  = -1;  // Index of the currently displayed molecule
-    let labelMode     = 0;   // 0 = off, 1 = element, 2 = atom number
-    let styleMode     = 0;   // 0 = stick, 1 = ball + stick
+    /* State */
+    let molecules = [];
+    let currentIndex = -1;
+    let labelMode = 0; // 0 off, 1 element, 2 index
+    let styleMode = 0; // 0 stick, 1 ball+stick
 
     const STYLE_NAMES = ["stick", "ballstick"];
-    const STYLE_TEXT  = ["Style: Stick", "Style: Ball & Stick"];
-    const MODE_TEXT   = ["Labels: Off", "Labels: Atom", "Labels: Number"];
+    const STYLE_TEXT = ["Style: Stick", "Style: Ball & Stick"];
+    const MODE_TEXT = ["Labels: Off", "Labels: Atom", "Labels: Number"];
 
-    // -----------------------------------------------------------------
-    // Utility: update button text
-    // -----------------------------------------------------------------
-    const updateStyleText = () => styleBtn.textContent  = STYLE_TEXT[styleMode];
-    const updateModeText  = () => labelModeBtn.textContent = MODE_TEXT[labelMode];
-
+    const updateStyleText = () => (styleBtn.textContent = STYLE_TEXT[styleMode]);
+    const updateModeText = () => (labelModeBtn.textContent = MODE_TEXT[labelMode]);
     updateStyleText();
     updateModeText();
 
-    /* --------------------------------------------------------------
-       File loading
-    -------------------------------------------------------------- */
+    /* File loading */
     fileBtn.addEventListener("click", () => fileInput.click());
-
     fileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = ({ target }) => {
-        try {
-          molecules = parseXYZ(target.result);
-          buildMoleculeList();
-          if (molecules.length) showMolecule(0);
-        } catch (err) {
-          alert(err.message ?? err);
-        }
+        molecules = parseXYZ(target.result);
+        buildMoleculeList();
       };
-
       reader.readAsText(file);
     });
 
-    /* --------------------------------------------------------------
-       XYZ file parser
-    -------------------------------------------------------------- */
+    /* XYZ parser with resilient error handling */
     function parseXYZ(text) {
       const lines = text.replace(/\r/g, "").split("\n");
-      const mols  = [];
-      let i = 0;
+      const mols = [];
+      const detailRegex = /^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)\s*\|\s*Charge=(\d+)\s*\|\s*Multiplicity=(\d+)/i;
+
+      let i = 0, counter = 0;
+
+      // helper: is this line a plausible count line?
+      const isCountLine = (idx) => {
+        if (idx >= lines.length) return false;
+        const trimmed = lines[idx].trim();
+        if (!/^\d+$/.test(trimmed)) return false; // must be pure integer
+        const n = parseInt(trimmed, 10);
+        if (n <= 0) return false;
+        // make sure there are at least n atom lines and a header line ahead
+        return idx + 2 + n <= lines.length;
+      };
+
+      const seekNextStart = () => {
+        while (i < lines.length && !isCountLine(i)) i++;
+      };
 
       while (i < lines.length) {
-        // Skip blank lines
-        while (i < lines.length && lines[i].trim() === "") i++;
+        seekNextStart();
         if (i >= lines.length) break;
 
-        const atomCount = parseInt(lines[i], 10);
-        if (isNaN(atomCount) || atomCount <= 0) {
-          throw new Error(`Invalid atom count on line ${i + 1}`);
-        }
+        const startIdx = i;
+        const atomCount = parseInt(lines[i].trim(), 10);
+        const headerLine = (lines[i + 1] ?? "").trim();
+        counter++;
 
-        const header = (lines[i + 1] ?? "").trim();
-        const atoms  = [];
-        const xyzLines = [];
+        let molObj = { header: headerLine, displayName: headerLine || `Molecule ${counter}`, error: false, errorMsg: "" };
 
-        for (let j = 0; j < atomCount; j++) {
-          const line = lines[i + 2 + j];
-          if (!line) throw new Error("Unexpected end of file while reading atoms");
+        try {
+          if (isNaN(atomCount) || atomCount <= 0) throw new Error(`Invalid atom count on line ${i + 1}`);
+          if (i + 2 + atomCount > lines.length) throw new Error("Unexpected end of file while reading atoms");
 
-          const parts = line.trim().split(/\s+/);
-          if (parts.length < 4) {
-            throw new Error(`Bad atom line on ${i + 3 + j}`);
+          const atoms = [];
+          const xyzLines = [];
+          for (let j = 0; j < atomCount; j++) {
+            const line = lines[i + 2 + j];
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 4) throw new Error(`Bad atom line on ${i + 3 + j}`);
+            let elem = parts[0];
+            if (/^\d+$/.test(elem)) elem = SYMBOLS[parseInt(elem, 10)] ?? "X";
+            const x = parseFloat(parts[1]);
+            const y = parseFloat(parts[2]);
+            const z = parseFloat(parts[3]);
+            xyzLines.push(`${elem} ${x} ${y} ${z}`);
+            atoms.push({ elem, x, y, z });
           }
 
-          // Element symbol can be a number (atomic number) or a symbol itself
-          let elem = parts[0];
-          if (/^\d+$/.test(elem)) {
-            elem = SYMBOLS[parseInt(elem, 10)] ?? "X";
+          const match = headerLine.match(detailRegex);
+          let details = null;
+          let displayName = headerLine;
+          if (match) {
+            details = {
+              name: match[1].trim(),
+              ehf: parseFloat(match[2]),
+              e0k: parseFloat(match[3]),
+              imag: parseFloat(match[4]),
+              charge: parseInt(match[5]),
+              mult: parseInt(match[6]),
+            };
+            displayName = details.name;
           }
 
-          const x = parseFloat(parts[1]);
-          const y = parseFloat(parts[2]);
-          const z = parseFloat(parts[3]);
+          molObj = {
+            header: headerLine,
+            displayName,
+            details,
+            atoms,
+            xyz: `${atomCount}\n${headerLine}\n${xyzLines.join("\n")}\n`,
+            error: false,
+            errorMsg: "",
+          };
 
-          xyzLines.push(`${elem} ${x} ${y} ${z}`);
-          atoms.push({ elem, x, y, z });
+          // advance pointer past this molecule
+          i = startIdx + atomCount + 2;
+        } catch (err) {
+          molObj.error = true;
+          molObj.errorMsg = err.message ?? String(err);
+          // skip to next plausible start BEFORE pushing
+          i = startIdx + 1;
+          while (i < lines.length && !isCountLine(i)) i++;
         }
 
-        mols.push({
-          header,
-          atoms,
-          xyz: `${atomCount}\n${header}\n${xyzLines.join("\n")}\n`,
-        });
-
-        i += atomCount + 2; // Move index to the next molecule block
+        mols.push(molObj);
       }
-
       return mols;
     }
 
-    /* --------------------------------------------------------------
-       UI helpers
-    -------------------------------------------------------------- */
+    /* Build molecule list */
     function buildMoleculeList() {
       molList.innerHTML = "";
-
+      let firstValid = -1;
       molecules.forEach((mol, idx) => {
         const btn = document.createElement("button");
-        btn.textContent = `${idx + 1}. ${mol.header || "Molecule"}`;
-        btn.addEventListener("click", () => showMolecule(idx));
+        btn.innerHTML = `<span class="index">${idx + 1}.</span> ${mol.displayName}${mol.error ? " ⚠️" : ""}`;
+        if (mol.error) {
+          btn.disabled = true;
+          btn.classList.add("error");
+          btn.title = mol.errorMsg;
+        } else {
+          btn.addEventListener("click", () => showMolecule(idx));
+          if (firstValid === -1) firstValid = idx;
+        }
         molList.appendChild(btn);
       });
+      if (firstValid !== -1) showMolecule(firstValid);
     }
 
-    /* --------------------------------------------------------------
-       Viewer updates
-    -------------------------------------------------------------- */
+    /* Viewer update */
     function showMolecule(index) {
       if (index < 0 || index >= molecules.length) return;
+      if (molecules[index].error) return;
       currentIndex = index;
-
-      // Highlight active button
       [...molList.children].forEach((btn, idx) => btn.classList.toggle("active", idx === index));
 
-      // Reset viewer
       viewer.removeAllLabels();
       viewer.removeAllModels();
 
       const model = viewer.addModel(molecules[index].xyz, "xyz");
       applyStyle(model);
-      drawLabels(model);
       viewer.zoomTo();
-      viewer.render();
+      viewer.render(); // first paint without labels for quicker feedback
 
-      updateFormula();
-    }
-
-    // -----------------------------------------------------------------
-    // Style application
-    // -----------------------------------------------------------------
-    function applyStyle(model) {
-      if (!model) return;
-      model.setStyle({}, {}); // Clear existing style
-
-      const stick  = { radius: 0.15 };
-      const sphere = { scale: 0.25 };
-      const isStickMode = STYLE_NAMES[styleMode] === "stick";
-
-      if (isStickMode) {
-        model.setStyle({}, { stick });
-      } else {
-        model.setStyle({}, { stick, sphere });
-        // Smaller spheres for hydrogens
-        model.setStyle({ elem: "H" }, { stick, sphere: { scale: 0.15 } });
+      if (labelMode !== 0) {
+        requestAnimationFrame(() => {
+          drawLabels(model);
+          viewer.render();
+        });
       }
 
-      // Element colouring
-      const addColour = (selector, colour) => {
-        if (isStickMode) {
-          model.setStyle(selector, { stick: { ...stick, color: colour } });
-        } else {
-          model.setStyle(selector, {
-            stick:  { ...stick,  color: colour },
-            sphere: { ...sphere, color: colour },
-          });
-        }
-      };
+      updateInfoPills();
+    }
 
-      addColour({ elem: "N" }, "#3b82f6"); // Blue for nitrogen
-      addColour({ elem: "F" }, "#006400"); // Dark green for fluorine
-      METALS.forEach(el => addColour({ elem: el }, "orange"));
+    /* Style handling */
+    function applyStyle(model) {
+      if (!model) return;
+      const stick = { radius: 0.15 };
+      const sphere = { scale: 0.25 };
+      const isStick = STYLE_NAMES[styleMode] === "stick";
+      model.setStyle({}, {});
+      if (isStick) model.setStyle({}, { stick });
+      else {
+        model.setStyle({}, { stick, sphere });
+        model.setStyle({ elem: "H" }, { stick, sphere: { scale: 0.15 } });
+      }
+      const colour = (selector, color) => {
+        if (isStick) model.setStyle(selector, { stick: { ...stick, color } });
+        else model.setStyle(selector, { stick: { ...stick, color }, sphere: { ...sphere, color } });
+      };
+      colour({ elem: "N" }, "#3b82f6");
+      colour({ elem: "F" }, "#006400");
+      METALS.forEach((el) => colour({ elem: el }, "orange"));
     }
 
     styleBtn.addEventListener("click", () => {
       styleMode = (styleMode + 1) % STYLE_NAMES.length;
       updateStyleText();
-      if (currentIndex !== -1) {
-        showMolecule(currentIndex);
-      }
+      if (currentIndex !== -1) showMolecule(currentIndex);
     });
 
-    // -----------------------------------------------------------------
-    // Labels
-    // -----------------------------------------------------------------
+    /* Label handling */
     function drawLabels(model) {
       if (!model || labelMode === 0) return;
-
       model.selectedAtoms({}).forEach((atom, idx) => {
         const text = labelMode === 2 ? String(idx + 1) : atom.elem;
         viewer.addLabel(text, {
           position: { x: atom.x, y: atom.y, z: atom.z },
-          fontSize: 12,
+          fontSize: 13,
           fontColor: "#000",
+          bold: true,
           showBackground: false,
         });
       });
@@ -525,43 +360,35 @@
     labelModeBtn.addEventListener("click", () => {
       labelMode = (labelMode + 1) % 3;
       updateModeText();
-      if (currentIndex !== -1) {
-        showMolecule(currentIndex);
-      }
+      if (currentIndex !== -1) showMolecule(currentIndex);
     });
 
-    /* --------------------------------------------------------------
-       Formula under the viewer
-    -------------------------------------------------------------- */
+    /* Info pills update */
+    function updateInfoPills() { updateFormula(); updateDetails(); }
+
     function updateFormula() {
       const mol = molecules[currentIndex];
-      if (!mol) {
-        formulaLabel.textContent = "";
-        return;
-      }
-
+      if (!mol) { formulaLabel.textContent = ""; return; }
       const counts = {};
-      mol.atoms.forEach(({ elem }) => {
-        counts[elem] = (counts[elem] ?? 0) + 1;
-      });
-
-      // Ordering: C, then H, then alphabetical
-      const sortedKeys = Object.keys(counts).sort((a, b) => {
-        if (a === "C") return -1;
-        if (b === "C") return  1;
+      mol.atoms.forEach(({ elem }) => counts[elem] = (counts[elem] ?? 0) + 1);
+      const keys = Object.keys(counts).sort((a, b) => {
+        if (a === "C") return -1; if (b === "C") return 1;
         if (a === "H") return b === "C" ? 1 : -1;
         if (b === "H") return a === "C" ? -1 : 1;
         return a.localeCompare(b);
       });
-
-      formulaLabel.textContent = sortedKeys
-        .map(k => k + (counts[k] > 1 ? counts[k] : ""))
-        .join(" ");
+      formulaLabel.textContent = keys.map(k => k + (counts[k] > 1 ? counts[k] : "")).join(" ");
     }
 
-    /* --------------------------------------------------------------
-       Keep viewer responsive
-    -------------------------------------------------------------- */
+    function updateDetails() {
+      const mol = molecules[currentIndex];
+      if (!mol || !mol.details) { detailsLabel.style.display = "none"; detailsLabel.textContent = ""; return; }
+      const d = mol.details;
+      detailsLabel.textContent = `E(HF) ${d.ehf.toFixed(2)} · E(0K) ${d.e0k.toFixed(2)} · Imag ${d.imag} · Charge ${d.charge} · Multiplicity ${d.mult}`;
+      detailsLabel.style.display = "block";
+    }
+
+    /* Responsiveness */
     window.addEventListener("resize", () => viewer.resize());
   </script>
 </body>
