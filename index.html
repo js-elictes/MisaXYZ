@@ -115,7 +115,7 @@
       </div>
     </section>
   </main>
-  <footer>RSI MolKit Viewer v1.9 · Roithová Group 2025</footer>
+  <footer>RSI MolKit Viewer v2.0 · Roithová Group 2025</footer>
 
   <script>
     /* === Helpers === */
@@ -147,6 +147,13 @@
     fileBtn.onclick=()=>fileInput.click();
     fileInput.onchange=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=({target})=>{mols=parseXYZ(target.result);buildList()};r.readAsText(f)};
 
+    /* === Sorting helper === */
+    function sortMolsByE0K() {
+      if (mols.length && mols.every(m => m.details && Number.isFinite(m.details.e0k))) {
+        mols.sort((a, b) => a.details.e0k - b.details.e0k);
+      }
+    }
+
     /* === XYZ Parser === */
     function parseXYZ(txt){const ln=txt.replace(/\r/g,"").split("\n"),out=[];let i=0,cnt=0;const detR=/^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)\s*\|\s*Charge=(\d+)\s*\|\s*Multiplicity=(\d+)/i;const isCnt=(k)=>k<ln.length&&/^\d+$/.test(ln[k].trim())&&+ln[k]>0&&k+2+ +ln[k]<=ln.length;const seek=()=>{while(i<ln.length&&!isCnt(i))i++};
       while(i<ln.length){seek();if(i>=ln.length)break;const start=i,n=+ln[i].trim(),header=(ln[i+1]||"").trim();cnt++;let obj={header,displayName:header||`Molecule ${cnt}`,error:false};try{if(n<=0||i+2+n>ln.length)throw new Error("Invalid block");const atoms=[],xyz=[];for(let j=0;j<n;j++){const p=ln[i+2+j].trim().split(/\s+/);if(p.length<4)throw new Error("Bad atom line");let el=p[0];if(/^\d+$/.test(el))el=SYM[+el]||"X";const x=+p[1],y=+p[2],z=+p[3];atoms.push({elem:el,x,y,z});xyz.push(`${el} ${x} ${y} ${z}`)}
@@ -154,6 +161,20 @@
         obj={header,displayName:name,details:det,atoms,xyz:`${n}\n${header}\n${xyz.join("\n")}\n`,error:false};i=start+n+2
       }catch(err){obj.error=true;obj.errorMsg=err.message||String(err);i=start+1;while(i<ln.length&&!isCnt(i))i++}out.push(obj)}return out}
 
+    /* === File Handling === */
+    fileBtn.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ({ target }) => {
+        mols = parseXYZ(target.result);
+        sortMolsByE0K();      // ← insert the sort here, before building the list
+        buildList();
+      };
+      r.readAsText(f);
+    };
+    
     /* === UI Builders === */
     function buildList(){molList.innerHTML="";let first=-1;mols.forEach((m,idx)=>{const btn=document.createElement("button");btn.innerHTML=`<span class="index">${idx+1}.</span> ${m.displayName}${m.error?" ⚠️":""}`;if(m.error){btn.disabled=true;btn.classList.add("error");btn.title=m.errorMsg}else{btn.onclick=()=>showMol(idx);if(first===-1)first=idx}molList.appendChild(btn)});if(first!==-1)showMol(first)}
 
