@@ -1,499 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>RSI MolKit Viewer</title>
-  <link rel="icon" type="image/png" href="rgfavicon.png" />
+  <link rel="icon" type="image/png" href="rgfavicon.png">
   <script src="./3Dmol-min-misaxyz.js"></script>
 
   <style>
-    /* Fonts */
-    @font-face { font-family: "Inter"; src: url("Inter-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-    @font-face { font-family: "Inter"; src: url("Inter-SemiBold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
-    @font-face { font-family: "Inter"; src: url("Inter-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+    /* === Fonts === */
+    @font-face{font-family:"Inter";src:url("Inter-Regular.woff2") format("woff2");font-weight:400;font-display:swap}
+    @font-face{font-family:"Inter";src:url("Inter-SemiBold.woff2") format("woff2");font-weight:600;font-display:swap}
+    @font-face{font-family:"Inter";src:url("Inter-Bold.woff2") format("woff2");font-weight:700;font-display:swap}
 
-    /* Theme tokens */
-    :root {
-      --bg: #f0f4ff;
-      --bg-grad-start: #d9f5f5;
-      --bg-grad-end: #f9fafb;
-      --card: rgba(255, 255, 255, 0.65);
-      --accent: #008081;
-      --accent-muted: #d5f0f0;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --radius: 12px;
-      --shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
-      /* sidebar width is now fluid */
-      --sidebar-width: 280px;
+    /* === Theme === */
+    :root{
+      --color-bg:#f0f4ff;
+      --color-bg-grad-start:#d9f5f5;
+      --color-bg-grad-end:#f9fafb;
+      --color-card:rgba(255,255,255,.65);
+      --color-accent:#008081;
+      --color-accent-muted:#d5f0f0;
+      --color-text:#1f2937;
+      --color-muted:#6b7280;
+      --radius:8px;
+      --shadow:0 10px 25px rgba(0,0,0,.07);
+      --sidebar-width:280px;
+      --color-n:#3b82f6;
+      --color-fluoride:#00008b;
+      --color-metal:orange;
     }
 
-    /* Reset */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", "Segoe UI", Arial, sans-serif; }
-    html, body { height: 100%; overflow-x: hidden; }
+    /* === Reset & Base === */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:"Inter","Segoe UI",Arial,sans-serif}
+    html,body{height:100%;overflow-x:hidden}
+    body{zoom:.95;display:flex;flex-direction:column;color:var(--color-text);background:var(--color-bg)}
+    body::before{content:"";position:fixed;inset:0;background:linear-gradient(130deg,var(--color-bg-grad-start) 0%,var(--color-bg-grad-end) 70%);z-index:-2}
+    main{flex:1;display:flex;overflow:hidden;animation:fadeIn .6s ease .1s both}
 
-    /* Layout */
-    body { zoom: 0.95; display: flex; flex-direction: column; color: var(--text); background: var(--bg); }
-    body::before { content: ""; position: fixed; inset: 0; background: linear-gradient(130deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 70%); z-index: -2; }
-    main { flex: 1; display: flex; overflow: hidden; animation: fadeIn 0.6s ease 0.1s both; }
+    /* === Sidebar === */
+    #sidebar{position:relative;width:var(--sidebar-width);min-width:280px;max-width:560px;display:flex;flex-direction:column;backdrop-filter:blur(14px) saturate(160%);background:var(--color-card);box-shadow:var(--shadow);border-right:1px solid rgba(0,0,0,.05);transition:width .25s ease}
+    #toggleSidebar{position:absolute;top:10px;right:10px;width:32px;height:32px;border:none;border-radius:var(--radius);background:var(--color-accent);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 6px rgba(0,0,0,.12);transition:transform .18s ease,background .18s ease}
+    #toggleSidebar:hover{background:#006e6f;transform:scale(1.05)}
+    #toggleSidebar .arrow{display:inline-block;transform:rotate(45deg);transition:transform .25s ease;pointer-events:none}
+    #toggleSidebar.expanded .arrow{transform:rotate(-45deg)}
 
-    /* Sidebar */
-    #sidebar {
-      position: relative;
-      width: var(--sidebar-width);
-      min-width: 280px;
-      max-width: 560px;
-      display: flex;
-      flex-direction: column;
-      backdrop-filter: blur(14px) saturate(160%);
-      background: var(--card);
-      box-shadow: var(--shadow);
-      border-right: 1px solid rgba(0, 0, 0, 0.05);
-      transition: width 0.2s ease;
-    }
-    #sidebar.resizing { user-select: none; }
+    /* === File Section === */
+    #fileSection{padding:16px 10px;border-bottom:1px solid rgba(0,0,0,.06)}
+    #rgLogo{display:block;margin:0 0 8px;width:140px;max-width:80%;height:auto}
+    #fileBtn{width:100%;padding:10px 18px;font-weight:600;font-size:15px;border:none;border-radius:var(--radius);background:var(--color-accent);color:#fff;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}
+    #fileBtn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 6px 14px rgba(0,128,129,.25)}
+    #fileBtn:active{transform:translateY(0) scale(1)}
 
-    /* Draggable resizer */
-    #sidebarResizer {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 12px;
-      height: 100%;
-      cursor: ew-resize;
-    }
+    /* === Molecule List === */
+    #sidebar header{padding:18px 16px;font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--color-text)}
+    #molList{flex:1;padding:0 10px 10px;overflow-y:auto;scroll-behavior:smooth}
+    #molList button{width:100%;text-align:left;background:transparent;border:none;padding:12px 14px;border-radius:var(--radius);font-size:15px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s ease,transform .18s ease,box-shadow .18s ease}
+    #molList button:hover{background:var(--color-accent-muted);transform:translateY(-1.5px) scale(1.02);box-shadow:0 5px 12px rgba(0,128,129,.18)}
+    #molList button:active{transform:translateY(0) scale(1)}
+    #molList button.active{background:var(--color-accent);color:#fff}
+    #molList button+button{margin-top:6px}
+    #molList button.error{color:#b91c1c;opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
+    #molList button.error:hover{background:transparent}
+    #molList .index{font-weight:700;margin-right:4px}
+    #molList::-webkit-scrollbar{width:6px}
+    #molList::-webkit-scrollbar-track{background:transparent}
+    #molList::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:3px}
 
-    #fileSection { padding: 16px 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
-    #rgLogo { display: block; margin: 0 0 8px 0; width: 140px; max-width: 80%; height: auto; }
+    /* === Controls === */
+    #controls{display:flex;flex-direction:column;gap:10px;padding:16px 10px;border-top:1px solid rgba(0,0,0,.06)}
+    #controls button{width:100%;padding:10px 18px;font-size:15px;border:none;border-radius:var(--radius);font-weight:600;background:#e5e7eb;color:var(--color-text);cursor:pointer;transition:background .15s ease,transform .18s ease,box-shadow .18s ease}
+    #controls button:hover{background:#d1d5db;transform:translateY(-1.5px) scale(1.02);box-shadow:0 5px 12px rgba(0,128,129,.18)}
+    #controls button:active{transform:translateY(0) scale(1)}
+    #controls button.active{background:var(--color-accent);color:#fff}
 
-    #fileBtn { width: 100%; padding: 10px 18px; font-weight: 600; font-size: 15px; border: none; border-radius: var(--radius); background: var(--accent); color: #fff; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
-    #fileBtn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 6px 14px rgba(0, 128, 129, 0.25); }
-    #fileBtn:active { transform: translateY(0) scale(1); }
+    /* === Viewer === */
+    #viewerContainer{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center}
+    #viewer{width:100%;height:100%}
+    #viewer canvas{will-change:transform}
 
-    #sidebar header { padding: 18px 16px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+    /* === Info Pills === */
+    #infoPills{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+    .pill{background:rgba(255,255,255,.8);backdrop-filter:blur(8px);padding:6px 14px;border-radius:var(--radius);font-weight:600;font-size:15px;color:var(--color-text);box-shadow:0 4px 10px rgba(0,0,0,.06);pointer-events:none;max-width:45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #detailsLabel{background:var(--color-accent-muted)}
 
-    /* MolKit banner */
-    #molkitInfo { display: none; padding: 12px 14px; margin: 10px; border-radius: var(--radius); background: var(--accent-muted); box-shadow: 0 4px 12px rgba(0, 128, 129, 0.15); animation: fadeIn 0.5s ease backwards; }
-    #molkitInfo .title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
-    #molkitInfo .date { font-size: 14px; opacity: 0.8; }
+    /* === Footer === */
+    footer{margin-top:auto;padding:8px 16px;font-size:13px;text-align:center;color:var(--color-muted)}
 
-    /* Molecule list */
-    #molList { flex: 1; padding: 0 10px 10px 10px; overflow-y: auto; scroll-behavior: smooth; }
-    #molList button {
-      width: 100%;
-      text-align: left;
-      background: transparent;
-      border: none;
-      padding: 12px 14px;
-      border-radius: var(--radius);
-      font-size: 15px;
-      cursor: pointer;
-      transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
-      white-space: nowrap; /* keep filenames on one line */
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    #molList button:hover { background: var(--accent-muted); transform: translateY(-1.5px) scale(1.02); box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18); }
-    #molList button:active { transform: translateY(0) scale(1); }
-    #molList button.active { background: var(--accent); color: #fff; }
-    #molList button + button { margin-top: 6px; }
-
-    #molList button.error { color: #b91c1c; opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
-    #molList button.error:hover { background: transparent; transform: none; box-shadow: none; }
-
-    #molList .index { font-weight: 700; margin-right: 4px; }
-
-    #molList::-webkit-scrollbar { width: 6px; }
-    #molList::-webkit-scrollbar-track { background: transparent; }
-    #molList::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 3px; }
-
-    /* Controls */
-    #controls { display: flex; flex-direction: column; gap: 10px; padding: 16px 10px; border-top: 1px solid rgba(0, 0, 0, 0.06); }
-    #controls button {
-      width: 100%;
-      padding: 10px 18px;
-      font-size: 15px;
-      border: none;
-      border-radius: var(--radius);
-      font-weight: 600;
-      background: #e5e7eb;
-      color: var(--text);
-      cursor: pointer;
-      transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
-    }
-    #controls button:hover { background: #d1d5db; transform: translateY(-1.5px) scale(1.02); box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18); }
-    #controls button:active { transform: translateY(0) scale(1); }
-    #controls button.active { background: var(--accent); color: #fff; }
-
-    /* Viewer */
-    #viewerContainer { flex: 1; position: relative; min-width: 0; display: flex; align-items: center; justify-content: center; }
-    #viewer { width: 100%; height: 100%; }
-    #viewer canvas { will-change: transform; }
-
-    /* Info pills */
-    #infoPills { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
-    .pill { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: var(--radius); font-weight: 600; font-size: 15px; color: var(--text); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06); pointer-events: none; max-width: 45vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #detailsLabel { background: var(--accent-muted); }
-
-    /* Footer */
-    footer {
-      margin-top: auto;
-      padding: 8px 16px;
-      font-size: 13px;
-      text-align: center;
-      color: var(--muted);
-    }
-
-    /* Animations */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    /* === Animations === */
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   </style>
 </head>
 <body>
   <main>
     <aside id="sidebar">
+      <button id="toggleSidebar" title="Expand/Collapse"><span class="arrow">⟷</span></button>
       <div id="fileSection">
-        <img id="rgLogo" src="rglogo.png" alt="Roithová Group logo" />
-        <input type="file" id="fileInput" accept=".xyz" hidden />
+        <img id="rgLogo" src="rglogo.png" alt="Roithová Group logo">
+        <input type="file" id="fileInput" accept=".xyz" hidden>
         <button id="fileBtn">Open .xyz</button>
       </div>
-
-      <!-- MolKit banner (hidden by default) -->
-      <div id="molkitInfo">
-        <div class="title">MolKit Extractor ${day}.${month}.${year}</div>
-        <div id="molkitDate" class="date"></div>
-      </div>
-
       <header>Molecules</header>
       <div id="molList"></div>
       <div id="controls">
         <button id="styleBtn">Style: Stick</button>
         <button id="labelMode">Labels: Off</button>
       </div>
-
-      <!-- draggable handle --><div id="sidebarResizer"></div>
     </aside>
 
     <section id="viewerContainer">
       <div id="viewer"></div>
       <div id="infoPills">
         <div id="formulaLabel" class="pill"></div>
-        <div id="detailsLabel" class="pill" style="display: none;"></div>
+        <div id="detailsLabel" class="pill" style="display:none"></div>
       </div>
     </section>
   </main>
-
-  <footer>RSI MolKit Viewer v1.8 · Roithová Group 2025</footer>
+  <footer>RSI MolKit Viewer v1.9 · Roithová Group 2025</footer>
 
   <script>
-    /* Periodic table helpers */
-    const SYMBOLS = ["", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og" ];
-    const METALS = ["Li", "Be", "Na", "Mg", "Al", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn" ];
+    /* === Helpers === */
+    const SYM=["","H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+    const METALS=["Li","Be","Na","Mg","Al","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn"];
 
-    /* DOM references */
-    const fileBtn = document.getElementById("fileBtn");
-    const fileInput = document.getElementById("fileInput");
-    const molList = document.getElementById("molList");
-    const labelModeBtn = document.getElementById("labelMode");
-    const styleBtn = document.getElementById("styleBtn");
-    const formulaLabel = document.getElementById("formulaLabel");
-    const detailsLabel = document.getElementById("detailsLabel");
+    const css=(v)=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
-    /* MolKit banner elements */
-    const molkitInfo = document.getElementById("molkitInfo");
-    const molkitDate = document.getElementById("molkitDate");
+    /* === DOM === */
+    const fileBtn=document.getElementById("fileBtn"),fileInput=document.getElementById("fileInput"),molList=document.getElementById("molList"),labelBtn=document.getElementById("labelMode"),styleBtn=document.getElementById("styleBtn"),formulaLabel=document.getElementById("formulaLabel"),detailsLabel=document.getElementById("detailsLabel"),toggleBtn=document.getElementById("toggleSidebar"),sidebar=document.getElementById("sidebar");
 
-    /* 3Dmol viewer */
-    const viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
-    viewer.enableFog(true);
-    if (viewer.setFog) viewer.setFog(0.3, 1.0);
+    /* === Viewer === */
+    const viewer=$3Dmol.createViewer("viewer",{backgroundColor:"white"});
+    viewer.enableFog(true);if(viewer.setFog)viewer.setFog(.3,1);
 
-    /* Sidebar resizer logic */
-    const sidebar = document.getElementById("sidebar");
-    const resizer = document.getElementById("sidebarResizer");
+    /* === Sidebar Toggle === */
+    let expanded=false;
+    toggleBtn.addEventListener("click",()=>{expanded=!expanded;sidebar.style.setProperty("--sidebar-width",expanded?"560px":"280px");toggleBtn.classList.toggle("expanded",expanded);viewer.resize()});
 
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
+    /* === State === */
+    let mols=[],current=-1,labelMode=0,styleMode=0;
+    const STYLE=["stick","ballstick"],STYLE_TXT=["Style: Stick","Style: Ball & Stick"],MODE_TXT=["Labels: Off","Labels: Atom","Labels: Number"];
 
-    resizer.addEventListener("pointerdown", (e) => {
-      isResizing = true;
-      startX = e.clientX;
-      startWidth = sidebar.getBoundingClientRect().width;
-      sidebar.classList.add("resizing");
-      resizer.setPointerCapture(e.pointerId);
-    });
+    const updStyleTxt=()=>styleBtn.textContent=STYLE_TXT[styleMode];
+    const updModeTxt=()=>labelBtn.textContent=MODE_TXT[labelMode];
+    updStyleTxt();updModeTxt();
 
-    resizer.addEventListener("pointermove", (e) => {
-      if (!isResizing) return;
-      const dx = e.clientX - startX;
-      const newWidth = Math.min(560, Math.max(280, startWidth + dx));
-      sidebar.style.setProperty("--sidebar-width", `${newWidth}px`);
-      viewer.resize();
-    });
+    /* === File Handling === */
+    fileBtn.onclick=()=>fileInput.click();
+    fileInput.onchange=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=({target})=>{mols=parseXYZ(target.result);buildList()};r.readAsText(f)};
 
-    const stopResize = (e) => {
-      if (!isResizing) return;
-      isResizing = false;
-      sidebar.classList.remove("resizing");
-      resizer.releasePointerCapture(e.pointerId);
-    };
+    /* === XYZ Parser === */
+    function parseXYZ(txt){const ln=txt.replace(/\r/g,"").split("\n"),out=[];let i=0,cnt=0;const detR=/^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)\s*\|\s*Charge=(\d+)\s*\|\s*Multiplicity=(\d+)/i;const isCnt=(k)=>k<ln.length&&/^\d+$/.test(ln[k].trim())&&+ln[k]>0&&k+2+ +ln[k]<=ln.length;const seek=()=>{while(i<ln.length&&!isCnt(i))i++};
+      while(i<ln.length){seek();if(i>=ln.length)break;const start=i,n=+ln[i].trim(),header=(ln[i+1]||"").trim();cnt++;let obj={header,displayName:header||`Molecule ${cnt}`,error:false};try{if(n<=0||i+2+n>ln.length)throw new Error("Invalid block");const atoms=[],xyz=[];for(let j=0;j<n;j++){const p=ln[i+2+j].trim().split(/\s+/);if(p.length<4)throw new Error("Bad atom line");let el=p[0];if(/^\d+$/.test(el))el=SYM[+el]||"X";const x=+p[1],y=+p[2],z=+p[3];atoms.push({elem:el,x,y,z});xyz.push(`${el} ${x} ${y} ${z}`)}
+        const m=header.match(detR);let det=null,name=header;if(m)det={name:m[1].trim(),ehf:+m[2],e0k:+m[3],imag:+m[4],charge:+m[5],mult:+m[6]},name=det.name;
+        obj={header,displayName:name,details:det,atoms,xyz:`${n}\n${header}\n${xyz.join("\n")}\n`,error:false};i=start+n+2
+      }catch(err){obj.error=true;obj.errorMsg=err.message||String(err);i=start+1;while(i<ln.length&&!isCnt(i))i++}out.push(obj)}return out}
 
-    resizer.addEventListener("pointerup", stopResize);
-    resizer.addEventListener("pointercancel", stopResize);
+    /* === UI Builders === */
+    function buildList(){molList.innerHTML="";let first=-1;mols.forEach((m,idx)=>{const btn=document.createElement("button");btn.innerHTML=`<span class="index">${idx+1}.</span> ${m.displayName}${m.error?" ⚠️":""}`;if(m.error){btn.disabled=true;btn.classList.add("error");btn.title=m.errorMsg}else{btn.onclick=()=>showMol(idx);if(first===-1)first=idx}molList.appendChild(btn)});if(first!==-1)showMol(first)}
 
-    /* State */
-    let molecules = [];
-    let currentIndex = -1;
-    let labelMode = 0; // 0 off, 1 element, 2 index
-    let styleMode = 0; // 0 stick, 1 ball+stick
+    /* === Viewer Rendering === */
+    function showMol(idx){if(idx<0||idx>=mols.length||mols[idx].error)return;current=idx;[...molList.children].forEach((b,i)=>b.classList.toggle("active",i===idx));viewer.removeAllLabels();viewer.removeAllModels();const mdl=viewer.addModel(mols[idx].xyz,"xyz");applyStyle(mdl);viewer.zoomTo();viewer.render();if(labelMode)requestAnimationFrame(()=>{drawLbls(mdl);viewer.render()});updatePills()}
 
-    const STYLE_NAMES = ["stick", "ballstick"];
-    const STYLE_TEXT = ["Style: Stick", "Style: Ball & Stick"];
-    const MODE_TEXT = ["Labels: Off", "Labels: Atom", "Labels: Number"];
+    function applyStyle(mdl){if(!mdl)return;const stick={radius:.15},sphere={scale:.25},isStick=STYLE[styleMode]==="stick";mdl.setStyle({},{});if(isStick)mdl.setStyle({},{stick});else{mdl.setStyle({},{stick,sphere});mdl.setStyle({elem:"H"},{stick,sphere:{scale:.15}})}
+      const clr=(sel,col)=>isStick?mdl.setStyle(sel,{stick:{...stick,color:col}}):mdl.setStyle(sel,{stick:{...stick,color:col},sphere:{...sphere,color:col}});
+      clr({elem:"N"},css("--color-n"));clr({elem:"F"},css("--color-fluoride"));METALS.forEach(e=>clr({elem:e},css("--color-metal")))}
 
-    const updateStyleText = () => (styleBtn.textContent = STYLE_TEXT[styleMode]);
-    const updateModeText = () => (labelModeBtn.textContent = MODE_TEXT[labelMode]);
-    updateStyleText();
-    updateModeText();
+    styleBtn.onclick=()=>{styleMode=(styleMode+1)%STYLE.length;updStyleTxt();current!==-1&&showMol(current)};
 
-    /* MolKit filename detection */
-    function handleMolkitBanner(filename) {
-      molkitInfo.style.display = "none"; // hide by default
-      if (!filename) return;
-      const pattern = /^MolKit_[^_]+_(\d{2})(\d{2})(\d{4})(?:\s*\(\d+\))?\.xyz$/i;
-      const match = filename.match(pattern);
-      if (!match) return;
-      const [ , day, month, year ] = match;
-      molkitDate.textContent = `Special features enabled.`;
-      molkitInfo.style.display = "block";
-    }
+    function drawLbls(mdl){mdl.selectedAtoms({}).forEach((a,i)=>{const txt=labelMode===2?String(i+1):a.elem;viewer.addLabel(txt,{position:{x:a.x,y:a.y,z:a.z},fontSize:13,fontColor:"#000",bold:true,showBackground:false})})}
+    labelBtn.onclick=()=>{labelMode=(labelMode+1)%3;updModeTxt();current!==-1&&showMol(current)};
 
-    /* File loading */
-    fileBtn.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      handleMolkitBanner(file.name);
-      const reader = new FileReader();
-      reader.onload = ({ target }) => {
-        molecules = parseXYZ(target.result);
-        buildMoleculeList();
-      };
-      reader.readAsText(file);
-    });
+    /* === Info Pills === */
+    const updatePills=()=>{const m=mols[current];if(!m){formulaLabel.textContent="";detailsLabel.style.display="none";return}
+      const cnt={},kys=[];m.atoms.forEach(({elem})=>cnt[elem]=(cnt[elem]||0)+1);
+      Object.keys(cnt).sort((a,b)=>{if(a==="C")return-1;if(b==="C")return 1;if(a==="H")return b==="C"?1:-1;if(b==="H")return a==="C"?-1:1;return a.localeCompare(b)}).forEach(k=>kys.push(k+(cnt[k]>1?cnt[k]:"")));
+      formulaLabel.textContent=kys.join(" ");
+      if(m.details){const d=m.details;detailsLabel.textContent=`E(HF) ${d.ehf.toFixed(2)} · E(0K) ${d.e0k.toFixed(2)} · Imag ${d.imag} · Charge ${d.charge} · Multiplicity ${d.mult}`;detailsLabel.style.display="block"}else detailsLabel.style.display="none"};
 
-    /* XYZ parser (unchanged) */
-    function parseXYZ(text) {
-      const lines = text.replace(/\r/g, "").split("\n");
-      const mols = [];
-      const detailRegex = /^(.*?)\s*\|\s*E\(HF\)=([\-\d.]+)\s*\|\s*E\(0K\)=([\-\d.]+)\s*\|\s*Imag=([\-\d.]+)\s*\|\s*Charge=(\d+)\s*\|\s*Multiplicity=(\d+)/i;
-
-      let i = 0, counter = 0;
-
-      const isCountLine = (idx) => {
-        if (idx >= lines.length) return false;
-        const trimmed = lines[idx].trim();
-        if (!/^\d+$/.test(trimmed)) return false;
-        const n = parseInt(trimmed, 10);
-        if (n <= 0) return false;
-        return idx + 2 + n <= lines.length;
-      };
-
-      const seekNextStart = () => { while (i < lines.length && !isCountLine(i)) i++; };
-
-      while (i < lines.length) {
-        seekNextStart();
-        if (i >= lines.length) break;
-
-        const startIdx = i;
-        const atomCount = parseInt(lines[i].trim(), 10);
-        const headerLine = (lines[i + 1] ?? "").trim();
-        counter++;
-
-        let molObj = { header: headerLine, displayName: headerLine || `Molecule ${counter}`, error: false, errorMsg: "" };
-
-        try {
-          if (isNaN(atomCount) || atomCount <= 0) throw new Error(`Invalid atom count on line ${i + 1}`);
-          if (i + 2 + atomCount > lines.length) throw new Error("Unexpected end of file while reading atoms");
-
-          const atoms = [];
-          const xyzLines = [];
-          for (let j = 0; j < atomCount; j++) {
-            const line = lines[i + 2 + j];
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 4) throw new Error(`Bad atom line on ${i + 3 + j}`);
-            let elem = parts[0];
-            if (/^\d+$/.test(elem)) elem = SYMBOLS[parseInt(elem, 10)] ?? "X";
-            const x = parseFloat(parts[1]);
-            const y = parseFloat(parts[2]);
-            const z = parseFloat(parts[3]);
-            xyzLines.push(`${elem} ${x} ${y} ${z}`);
-            atoms.push({ elem, x, y, z });
-          }
-
-          const match = headerLine.match(detailRegex);
-          let details = null;
-          let displayName = headerLine;
-          if (match) {
-            details = {
-              name: match[1].trim(),
-              ehf: parseFloat(match[2]),
-              e0k: parseFloat(match[3]),
-              imag: parseFloat(match[4]),
-              charge: parseInt(match[5]),
-              mult: parseInt(match[6]),
-            };
-            displayName = details.name;
-          }
-
-          molObj = {
-            header: headerLine,
-            displayName,
-            details,
-            atoms,
-            xyz: `${atomCount}\n${headerLine}\n${xyzLines.join("\n")}\n`,
-            error: false,
-            errorMsg: "",
-          };
-
-          i = startIdx + atomCount + 2;
-        } catch (err) {
-          molObj.error = true;
-          molObj.errorMsg = err.message ?? String(err);
-          i = startIdx + 1;
-          while (i < lines.length && !isCountLine(i)) i++;
-        }
-
-        mols.push(molObj);
-      }
-      return mols;
-    }
-
-    /* Build molecule list */
-    function buildMoleculeList() {
-      molList.innerHTML = "";
-      let firstValid = -1;
-      molecules.forEach((mol, idx) => {
-        const btn = document.createElement("button");
-        btn.innerHTML = `<span class="index">${idx + 1}.</span> ${mol.displayName}${mol.error ? " ⚠️" : ""}`;
-        if (mol.error) {
-          btn.disabled = true;
-          btn.classList.add("error");
-          btn.title = mol.errorMsg;
-        } else {
-          btn.addEventListener("click", () => showMolecule(idx));
-          if (firstValid === -1) firstValid = idx;
-        }
-        molList.appendChild(btn);
-      });
-      if (firstValid !== -1) showMolecule(firstValid);
-    }
-
-    /* Viewer update */
-    function showMolecule(index) {
-      if (index < 0 || index >= molecules.length) return;
-      if (molecules[index].error) return;
-      currentIndex = index;
-      [...molList.children].forEach((btn, idx) => btn.classList.toggle("active", idx === index));
-
-      viewer.removeAllLabels();
-      viewer.removeAllModels();
-
-      const model = viewer.addModel(molecules[index].xyz, "xyz");
-      applyStyle(model);
-      viewer.zoomTo();
-      viewer.render();
-
-      if (labelMode !== 0) {
-        requestAnimationFrame(() => {
-          drawLabels(model);
-          viewer.render();
-        });
-      }
-
-      updateInfoPills();
-    }
-
-    viewer.getCanvas().addEventListener("webglcontextlost", e => {
-      e.preventDefault();                          // stop Chrome from killing the page
-      setTimeout(() => { viewer.resize(); viewer.render(); }, 0);
-    });
-    
-    /* Style handling */
-    function applyStyle(model) {
-      if (!model) return;
-      const stick = { radius: 0.15 };
-      const sphere = { scale: 0.25 };
-      const isStick = STYLE_NAMES[styleMode] === "stick";
-      model.setStyle({}, {});
-      if (isStick) model.setStyle({}, { stick });
-      else {
-        model.setStyle({}, { stick, sphere });
-        model.setStyle({ elem: "H" }, { stick, sphere: { scale: 0.15 } });
-      }
-      const colour = (selector, color) => {
-        if (isStick) model.setStyle(selector, { stick: { ...stick, color } });
-        else model.setStyle(selector, { stick: { ...stick, color }, sphere: { ...sphere, color } });
-      };
-      colour({ elem: "N" }, "#3b82f6");
-      colour({ elem: "F" }, "#00008b"); // fluoride dark blue
-      METALS.forEach((el) => colour({ elem: el }, "orange"));
-    }
-
-    styleBtn.addEventListener("click", () => {
-      styleMode = (styleMode + 1) % STYLE_NAMES.length;
-      updateStyleText();
-      if (currentIndex !== -1) showMolecule(currentIndex);
-    });
-
-    /* Label handling */
-    function drawLabels(model) {
-      if (!model || labelMode === 0) return;
-      model.selectedAtoms({}).forEach((atom, idx) => {
-        const text = labelMode === 2 ? String(idx + 1) : atom.elem;
-        viewer.addLabel(text, {
-          position: { x: atom.x, y: atom.y, z: atom.z },
-          fontSize: 13,
-          fontColor: "#000",
-          bold: true,
-          showBackground: false,
-        });
-      });
-    }
-
-    labelModeBtn.addEventListener("click", () => {
-      labelMode = (labelMode + 1) % 3;
-      updateModeText();
-      if (currentIndex !== -1) showMolecule(currentIndex);
-    });
-
-    /* Info pills update */
-    function updateInfoPills() { updateFormula(); updateDetails(); }
-
-    function updateFormula() {
-      const mol = molecules[currentIndex];
-      if (!mol) { formulaLabel.textContent = ""; return; }
-      const counts = {};
-      mol.atoms.forEach(({ elem }) => counts[elem] = (counts[elem] ?? 0) + 1);
-      const keys = Object.keys(counts).sort((a, b) => {
-        if (a === "C") return -1; if (b === "C") return 1;
-        if (a === "H") return b === "C" ? 1 : -1;
-        if (b === "H") return a === "C" ? -1 : 1;
-        return a.localeCompare(b);
-      });
-      formulaLabel.textContent = keys.map(k => k + (counts[k] > 1 ? counts[k] : "")).join(" ");
-    }
-
-    function updateDetails() {
-      const mol = molecules[currentIndex];
-      if (!mol || !mol.details) { detailsLabel.style.display = "none"; detailsLabel.textContent = ""; return; }
-      const d = mol.details;
-      detailsLabel.textContent = `E(HF) ${d.ehf.toFixed(2)} · E(0K) ${d.e0k.toFixed(2)} · Imag ${d.imag} · Charge ${d.charge} · Multiplicity ${d.mult}`;
-      detailsLabel.style.display = "block";
-    }
-
-    /* Responsiveness */
-    window.addEventListener("resize", () => viewer.resize());
+    /* === Resilience === */
+    viewer.getCanvas().addEventListener("webglcontextlost",e=>{e.preventDefault();setTimeout(()=>{viewer.resize();viewer.render()},0)});
+    window.addEventListener("resize",()=>viewer.resize());
   </script>
 </body>
 </html>
