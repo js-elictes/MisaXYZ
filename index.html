@@ -24,11 +24,13 @@
       --muted: #6b7280;
       --radius: 12px;
       --shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+      /* sidebar width is now fluid */
+      --sidebar-width: 280px;
     }
 
     /* Reset */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", "Segoe UI", Arial, sans-serif; }
-    html, body { height: 100%; }
+    html, body { height: 100%; overflow-x: hidden; }
 
     /* Layout */
     body { zoom: 0.95; display: flex; flex-direction: column; color: var(--text); background: var(--bg); }
@@ -36,7 +38,31 @@
     main { flex: 1; display: flex; overflow: hidden; animation: fadeIn 0.6s ease 0.1s both; }
 
     /* Sidebar */
-    #sidebar { width: 280px; max-width: 65%; display: flex; flex-direction: column; backdrop-filter: blur(14px) saturate(160%); background: var(--card); box-shadow: var(--shadow); border-right: 1px solid rgba(0, 0, 0, 0.05); }
+    #sidebar {
+      position: relative;
+      width: var(--sidebar-width);
+      min-width: 280px;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(14px) saturate(160%);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border-right: 1px solid rgba(0, 0, 0, 0.05);
+      transition: width 0.2s ease;
+    }
+    #sidebar.resizing { user-select: none; }
+
+    /* Draggable resizer */
+    #sidebarResizer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 12px;
+      height: 100%;
+      cursor: ew-resize;
+    }
+
     #fileSection { padding: 16px 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
     #rgLogo { display: block; margin: 0 0 8px 0; width: 140px; max-width: 80%; height: auto; }
 
@@ -46,9 +72,27 @@
 
     #sidebar header { padding: 18px 16px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
 
+    /* MolKit banner */
+    #molkitInfo { display: none; padding: 12px 14px; margin: 10px; border-radius: var(--radius); background: var(--accent-muted); box-shadow: 0 4px 12px rgba(0, 128, 129, 0.15); animation: fadeIn 0.5s ease backwards; }
+    #molkitInfo .title { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    #molkitInfo .date { font-size: 14px; opacity: 0.8; }
+
     /* Molecule list */
     #molList { flex: 1; padding: 0 10px 10px 10px; overflow-y: auto; scroll-behavior: smooth; }
-    #molList button { width: 100%; text-align: left; background: transparent; border: none; padding: 12px 14px; border-radius: var(--radius); font-size: 15px; cursor: pointer; transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+    #molList button {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap; /* keep filenames on one line */
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     #molList button:hover { background: var(--accent-muted); transform: translateY(-1.5px) scale(1.02); box-shadow: 0 5px 12px rgba(0, 128, 129, 0.18); }
     #molList button:active { transform: translateY(0) scale(1); }
     #molList button.active { background: var(--accent); color: #fff; }
@@ -84,6 +128,7 @@
     /* Viewer */
     #viewerContainer { flex: 1; position: relative; min-width: 0; display: flex; align-items: center; justify-content: center; }
     #viewer { width: 100%; height: 100%; }
+    #viewer canvas { will-change: transform; }
 
     /* Info pills */
     #infoPills { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
@@ -111,12 +156,21 @@
         <input type="file" id="fileInput" accept=".xyz" hidden />
         <button id="fileBtn">Open .xyz</button>
       </div>
+
+      <!-- MolKit banner (hidden by default) -->
+      <div id="molkitInfo">
+        <div class="title">MolKit Extractor ${day}.${month}.${year}</div>
+        <div id="molkitDate" class="date"></div>
+      </div>
+
       <header>Molecules</header>
       <div id="molList"></div>
       <div id="controls">
         <button id="styleBtn">Style: Stick</button>
         <button id="labelMode">Labels: Off</button>
       </div>
+
+      <!-- draggable handle --><div id="sidebarResizer"></div>
     </aside>
 
     <section id="viewerContainer">
@@ -128,7 +182,7 @@
     </section>
   </main>
 
-  <footer>RSI MolKit Viewer v1.7 · Roithová Group 2025</footer>
+  <footer>RSI MolKit Viewer v1.8 · Roithová Group 2025</footer>
 
   <script>
     /* Periodic table helpers */
@@ -144,10 +198,48 @@
     const formulaLabel = document.getElementById("formulaLabel");
     const detailsLabel = document.getElementById("detailsLabel");
 
+    /* MolKit banner elements */
+    const molkitInfo = document.getElementById("molkitInfo");
+    const molkitDate = document.getElementById("molkitDate");
+
     /* 3Dmol viewer */
     const viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
     viewer.enableFog(true);
     if (viewer.setFog) viewer.setFog(0.3, 1.0);
+
+    /* Sidebar resizer logic */
+    const sidebar = document.getElementById("sidebar");
+    const resizer = document.getElementById("sidebarResizer");
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizer.addEventListener("pointerdown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = sidebar.getBoundingClientRect().width;
+      sidebar.classList.add("resizing");
+      resizer.setPointerCapture(e.pointerId);
+    });
+
+    resizer.addEventListener("pointermove", (e) => {
+      if (!isResizing) return;
+      const dx = e.clientX - startX;
+      const newWidth = Math.min(560, Math.max(280, startWidth + dx));
+      sidebar.style.setProperty("--sidebar-width", `${newWidth}px`);
+      viewer.resize();
+    });
+
+    const stopResize = (e) => {
+      if (!isResizing) return;
+      isResizing = false;
+      sidebar.classList.remove("resizing");
+      resizer.releasePointerCapture(e.pointerId);
+    };
+
+    resizer.addEventListener("pointerup", stopResize);
+    resizer.addEventListener("pointercancel", stopResize);
 
     /* State */
     let molecules = [];
@@ -164,11 +256,24 @@
     updateStyleText();
     updateModeText();
 
+    /* MolKit filename detection */
+    function handleMolkitBanner(filename) {
+      molkitInfo.style.display = "none"; // hide by default
+      if (!filename) return;
+      const pattern = /^MolKit_[^_]+_(\d{2})(\d{2})(\d{4})(?:\s*\(\d+\))?\.xyz$/i;
+      const match = filename.match(pattern);
+      if (!match) return;
+      const [ , day, month, year ] = match;
+      molkitDate.textContent = `Special features enabled.`;
+      molkitInfo.style.display = "block";
+    }
+
     /* File loading */
     fileBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      handleMolkitBanner(file.name);
       const reader = new FileReader();
       reader.onload = ({ target }) => {
         molecules = parseXYZ(target.result);
@@ -177,7 +282,7 @@
       reader.readAsText(file);
     });
 
-    /* XYZ parser with resilient error handling */
+    /* XYZ parser (unchanged) */
     function parseXYZ(text) {
       const lines = text.replace(/\r/g, "").split("\n");
       const mols = [];
@@ -185,20 +290,16 @@
 
       let i = 0, counter = 0;
 
-      // helper: is this line a plausible count line?
       const isCountLine = (idx) => {
         if (idx >= lines.length) return false;
         const trimmed = lines[idx].trim();
-        if (!/^\d+$/.test(trimmed)) return false; // must be pure integer
+        if (!/^\d+$/.test(trimmed)) return false;
         const n = parseInt(trimmed, 10);
         if (n <= 0) return false;
-        // make sure there are at least n atom lines and a header line ahead
         return idx + 2 + n <= lines.length;
       };
 
-      const seekNextStart = () => {
-        while (i < lines.length && !isCountLine(i)) i++;
-      };
+      const seekNextStart = () => { while (i < lines.length && !isCountLine(i)) i++; };
 
       while (i < lines.length) {
         seekNextStart();
@@ -255,12 +356,10 @@
             errorMsg: "",
           };
 
-          // advance pointer past this molecule
           i = startIdx + atomCount + 2;
         } catch (err) {
           molObj.error = true;
           molObj.errorMsg = err.message ?? String(err);
-          // skip to next plausible start BEFORE pushing
           i = startIdx + 1;
           while (i < lines.length && !isCountLine(i)) i++;
         }
@@ -303,7 +402,7 @@
       const model = viewer.addModel(molecules[index].xyz, "xyz");
       applyStyle(model);
       viewer.zoomTo();
-      viewer.render(); // first paint without labels for quicker feedback
+      viewer.render();
 
       if (labelMode !== 0) {
         requestAnimationFrame(() => {
@@ -315,6 +414,11 @@
       updateInfoPills();
     }
 
+    viewer.getCanvas().addEventListener("webglcontextlost", e => {
+      e.preventDefault();                          // stop Chrome from killing the page
+      setTimeout(() => { viewer.resize(); viewer.render(); }, 0);
+    });
+    
     /* Style handling */
     function applyStyle(model) {
       if (!model) return;
@@ -332,7 +436,7 @@
         else model.setStyle(selector, { stick: { ...stick, color }, sphere: { ...sphere, color } });
       };
       colour({ elem: "N" }, "#3b82f6");
-      colour({ elem: "F" }, "#006400");
+      colour({ elem: "F" }, "#00008b"); // fluoride dark blue
       METALS.forEach((el) => colour({ elem: el }, "orange"));
     }
 
